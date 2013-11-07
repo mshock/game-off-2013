@@ -6,6 +6,20 @@
  * 
  */
 
+function potion() {
+	this.color = '#' + Math.floor(Math.random() * 16777215).toString(16);
+	
+	this.render = function(layer, grid, x, y) {
+		// layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
+		// y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
+		// grid.ysize - grid.lineWidth * 2);
+		layer.fillStyle(this.color).font(
+				"bold " + (grid.fontsize + 15) + "px sans-serif").fillText('!',
+				x * grid.xsize + 8, y * grid.ysize + 22);
+		//console.log(x * grid.xsize + ' ' + y * grid.ysize);
+	}
+}
+
 function grid(xdim, ydim, bgcolor, fontsize) {
 	this.xdim = xdim;
 	this.ydim = ydim;
@@ -14,16 +28,38 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 	this.fontsize = fontsize;
 	this.xsize = (xdim / fontsize / 2);
 	this.ysize = (ydim / fontsize / 2);
-	this.squares = new Array(xdim / fontsize, ydim / fontsize);
+	this.squares = new Array();
 	this.lineWidth = 1;
 
-	this.render = function(layer) {
+	// initialize squares with objects on start
+	this.initSquares = function() {
+		for ( var x = 0; x < this.xsize - 1; x++) {
+			this.squares[x] = new Array();
+			for ( var y = 0; y < this.ysize - 1; y++) {
+				// no generation on start square
+				if (x == 0 && y == 0) {
+					this.squares[x][y] = 0;
+					continue;
+				}
+
+				var r = Math.random();
+				// 10% chance of potion
+				if (r < .1) {
+					this.squares[x][y] = new potion();
+				} else {
+					this.squares[x][y] = 0;
+				}
+			}
+		}
+	}
+
+	this.initGrid = function(layer) {
 		// background
 		layer.clear(this.bgcolor);
 
 		// draw the game grid
-		for ( var x = 0; x < (this.xdim / this.fontsize); x++) {
-			for ( var y = 0; y < (this.ydim / this.fontsize); y++) {
+		for ( var x = 0; x < this.xsize - 1; x++) {
+			for ( var y = 0; y < this.ysize - 1; y++) {
 				layer.beginPath().moveTo(x * this.xsize, 0).lineTo(
 						x * this.xsize, 600).strokeStyle(this.gridcolor)
 						.lineWidth(this.lineWidth).stroke();
@@ -33,6 +69,17 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 		}
 	}
 
+	this.render = function(layer) {
+		// draw objects on grid
+		for ( var x = 0; x < this.xsize - 1; x++) {
+			for ( var y = 0; y < this.ysize - 1; y++) {
+				if (this.squares[x][y] != 0) {
+					this.squares[x][y].render(layer, this, x, y);
+				}
+			}
+		}
+
+	}
 }
 
 function player(x, y, color) {
@@ -73,15 +120,23 @@ function player(x, y, color) {
 	}
 
 	this.render = function(layer, grid) {
-		// erase previous square
+		// erase previous square if empty
 		layer.fillStyle(grid.bgcolor).fillRect(this.prevx + grid.lineWidth,
 				this.prevy + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
 				grid.ysize - grid.lineWidth * 2);
+		//console.log((this.prevx / grid.xsize) + ' ' + (this.prevy / grid.ysize));
+		
+		if (grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize] != 0) {
+			grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize]
+					.render(layer, grid, this.prevx / grid.xsize, this.prevy
+							/ grid.ysize);
+		}
+		
 
 		// draw player
 		layer.fillStyle(this.color).font(
 				"bold " + grid.fontsize + "px sans-serif").fillText('@',
-				this.x + 6, this.y + 13);
+				this.x + 6, this.y + 15);
 		this.prevx = this.x;
 		this.prevy = this.y;
 	}
@@ -98,18 +153,27 @@ function hud(xdim, ydim) {
 		layer.fillStyle(this.hudbgcolor).fillRect(0, grid.ydim, this.xdim,
 				this.ydim);
 		// draw current potion color indicator
-		layer.fillStyle(player.potioncolor).beginPath().arc(this.xdim / 8,
-				grid.ydim + this.ydim / 2, this.ydim / 4, 0, 2 * Math.PI)
-				.fill().strokeStyle(
+		layer.beginPath().arc(this.xdim / 8, grid.ydim + this.ydim / 2,
+				this.ydim / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
+				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
-								.toHex()).lineWidth(5).stroke();
+								.toHex()).stroke();
 	}
+}
+
+function rnd_snd() {
+	return (Math.random() * 2 - 1) + (Math.random() * 2 - 1)
+			+ (Math.random() * 2 - 1);
+}
+
+function rnd(mean, stdev) {
+	return Math.round(rnd_snd() * stdev + mean);
 }
 
 var alchemy = {
 	setup : function() {
 		// intialize game objects
-		this.grid = new grid(600, 504, '#E3DEE0', 12);
+		this.grid = new grid(600, 600, '#E3DEE0', 12);
 		this.hud = new hud(600, 96);
 		this.player = new player(0, 0, '#000000');
 
@@ -117,6 +181,9 @@ var alchemy = {
 		this.layer = cq(this.grid.xdim, this.grid.ydim + this.hud.ydim)
 				.framework(this, this);
 
+		this.grid.initSquares();
+		this.grid.initGrid(this.layer);
+		// render game objects
 		this.grid.render(this.layer);
 		this.hud.render(this.layer, this.grid, this.player);
 		this.player.render(this.layer, this.grid);
@@ -132,12 +199,14 @@ var alchemy = {
 
 	/* rendering loop */
 	onrender : function(delta, time) {
+		// render updated objects
 		if (this.player.updated) {
 			this.player.render(this.layer, this.grid);
 			this.player.updated = 0;
 		}
 		if (this.hud.updated) {
 			this.hud.render(this.layer, this.grid, this.player);
+			this.hud.updated = 0;
 		}
 
 	},
