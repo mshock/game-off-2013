@@ -25,7 +25,8 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 		for ( var x = 0; x < (this.xdim / this.fontsize); x++) {
 			for ( var y = 0; y < (this.ydim / this.fontsize); y++) {
 				layer.beginPath().moveTo(x * this.xsize, 0).lineTo(
-						x * this.xsize, 600).strokeStyle(this.gridcolor).stroke();
+						x * this.xsize, 600).strokeStyle(this.gridcolor)
+						.lineWidth(this.lineWidth).stroke();
 				layer.beginPath().moveTo(0, y * this.ysize).lineTo(800,
 						y * this.ysize).stroke();
 			}
@@ -40,15 +41,18 @@ function player(x, y, color) {
 	this.prevx = x;
 	this.prevy = y;
 	this.color = color;
-	this.moved = 0;
+	this.updated = 0;
 	this.up = 0;
 	this.down = 0;
 	this.right = 0;
 	this.left = 0;
 
-	this.step = function (grid) {
+	// current working potion color
+	this.potioncolor = '#57ED2D';
+
+	this.step = function(grid) {
 		// update player position flags
-		if (this.moved) {
+		if (this.updated) {
 			if (this.right) {
 				this.x += grid.xsize;
 				this.right = 0;
@@ -74,7 +78,7 @@ function player(x, y, color) {
 				this.prevy + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
 				grid.ysize - grid.lineWidth * 2);
 
-		// draw the this.player
+		// draw player
 		layer.fillStyle(this.color).font(
 				"bold " + grid.fontsize + "px sans-serif").fillText('@',
 				this.x + 6, this.y + 13);
@@ -87,12 +91,20 @@ function hud(xdim, ydim) {
 	this.xdim = xdim;
 	this.ydim = ydim;
 	this.hudbgcolor = '#4F4F4F';
-	
-	this.render = function(layer, grid) {
-		layer.fillStyle(this.hudbgcolor).fillRect(0, grid.ydim, this.xdim, this.ydim);
+	this.updated = 0;
+
+	this.render = function(layer, grid, player) {
+		// draw hud background
+		layer.fillStyle(this.hudbgcolor).fillRect(0, grid.ydim, this.xdim,
+				this.ydim);
+		// draw current potion color indicator
+		layer.fillStyle(player.potioncolor).beginPath().arc(this.xdim / 8,
+				grid.ydim + this.ydim / 2, this.ydim / 4, 0, 2 * Math.PI)
+				.fill().strokeStyle(
+						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
+								.toHex()).lineWidth(5).stroke();
 	}
 }
-
 
 var alchemy = {
 	setup : function() {
@@ -102,10 +114,11 @@ var alchemy = {
 		this.player = new player(0, 0, '#000000');
 
 		// create canvas
-		this.layer = cq(this.grid.xdim, this.grid.ydim + this.hud.ydim).framework(this, this);
+		this.layer = cq(this.grid.xdim, this.grid.ydim + this.hud.ydim)
+				.framework(this, this);
 
 		this.grid.render(this.layer);
-		this.hud.render(this.layer, this.grid);
+		this.hud.render(this.layer, this.grid, this.player);
 		this.player.render(this.layer, this.grid);
 
 		this.layer.appendTo("#gamediv");
@@ -119,9 +132,12 @@ var alchemy = {
 
 	/* rendering loop */
 	onrender : function(delta, time) {
-		if (this.player.moved) {
+		if (this.player.updated) {
 			this.player.render(this.layer, this.grid);
-			this.player.moved = 0;
+			this.player.updated = 0;
+		}
+		if (this.hud.updated) {
+			this.hud.render(this.layer, this.grid, this.player);
 		}
 
 	},
@@ -151,28 +167,35 @@ var alchemy = {
 	/* keyboard events */
 	onkeydown : function(key) {
 		switch (key) {
+		// quoff current working potion!
+		case 'q':
+			this.player.color = this.player.potioncolor;
+			this.player.potioncolor = '#FFFFFF';
+			this.player.updated = 1;
+			this.hud.updated = 1;
+			break;
 		case 'down':
 			if (this.player.y + this.grid.ysize < this.grid.ydim) {
 				this.player.down = 1;
-				this.player.moved = 1;
+				this.player.updated = 1;
 			}
 			break;
 		case 'right':
 			if (this.player.x + this.grid.xsize < this.grid.xdim) {
 				this.player.right = 1;
-				this.player.moved = 2;
+				this.player.updated = 2;
 			}
 			break;
 		case 'up':
 			if (this.player.y - this.grid.ysize >= 0) {
 				this.player.up = 1;
-				this.player.moved = 3;
+				this.player.updated = 3;
 			}
 			break;
 		case 'left':
 			if (this.player.x - this.grid.xsize >= 0) {
 				this.player.left = 1;
-				this.player.moved = 4;
+				this.player.updated = 4;
 			}
 			break;
 		}
