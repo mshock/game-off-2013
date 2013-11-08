@@ -5,18 +5,19 @@
  *	by Matt Shockley
  * 
  */
-
 function potion() {
-	this.color = '#' + Math.floor(Math.random() * 16777215).toString(16);
+	this.name = 'potion';
+	// random hex color
+	this.color = '#' + ('000000' + Math.floor(Math.random() * 16777215).toString(16)).slice(-6);
 	
 	this.render = function(layer, grid, x, y) {
-		// layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
-		// y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
-		// grid.ysize - grid.lineWidth * 2);
+//		 layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
+//		 y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
+//		 grid.ysize - grid.lineWidth * 2);
 		layer.fillStyle(this.color).font(
 				"bold " + (grid.fontsize + 15) + "px sans-serif").fillText('!',
 				x * grid.xsize + 8, y * grid.ysize + 22);
-		//console.log(x * grid.xsize + ' ' + y * grid.ysize);
+		
 	}
 }
 
@@ -32,12 +33,12 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 	this.lineWidth = 1;
 
 	// initialize squares with objects on start
-	this.initSquares = function() {
+	this.initSquares = function(player) {
 		for ( var x = 0; x < this.xsize - 1; x++) {
 			this.squares[x] = new Array();
 			for ( var y = 0; y < this.ysize - 1; y++) {
-				// no generation on start square
-				if (x == 0 && y == 0) {
+				// no generation on player square
+				if (x == player.x && y == player.y) {
 					this.squares[x][y] = 0;
 					continue;
 				}
@@ -95,8 +96,27 @@ function player(x, y, color) {
 	this.left = 0;
 
 	// current working potion color
-	this.potioncolor = '#57ED2D';
+	this.potioncolor = '#FFFFFF';
 
+	// pick up the object under player and handle
+	this.nab = function(layer, grid, hud) {
+		var object = grid.squares[this.x / grid.xsize][this.y / grid.ysize];
+		// no object, return
+		if (object == 0) {return};
+		
+		switch(object.name) {
+		case 'potion':
+			this.potioncolor = mixColors(this.potioncolor, object.color);
+			break;
+		}
+		
+		grid.squares[this.x / grid.xsize][this.y / grid.ysize] = 0;
+		
+		grid.updated = 1;
+		hud.updated = 1;
+		this.updated = 1;
+	}
+	
 	this.step = function(grid) {
 		// update player position flags
 		if (this.updated) {
@@ -126,6 +146,7 @@ function player(x, y, color) {
 				grid.ysize - grid.lineWidth * 2);
 		//console.log((this.prevx / grid.xsize) + ' ' + (this.prevy / grid.ysize));
 		
+		// draw any object in previous square
 		if (grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize] != 0) {
 			grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize]
 					.render(layer, grid, this.prevx / grid.xsize, this.prevy
@@ -161,6 +182,16 @@ function hud(xdim, ydim) {
 	}
 }
 
+function mixColors(color1, color2) {
+	var a1 = cq.color(color1).toArray();
+	var a2 = cq.color(color2).toArray();
+	var res = new Array();
+	for (var i = 0; i < a1.length; i++) {
+		res[i] = (a1[i] + a2[i]) / 2;
+	}
+	return cq.color(res).toHex();
+}
+
 function rnd_snd() {
 	return (Math.random() * 2 - 1) + (Math.random() * 2 - 1)
 			+ (Math.random() * 2 - 1);
@@ -181,7 +212,7 @@ var alchemy = {
 		this.layer = cq(this.grid.xdim, this.grid.ydim + this.hud.ydim)
 				.framework(this, this);
 
-		this.grid.initSquares();
+		this.grid.initSquares(this.player);
 		this.grid.initGrid(this.layer);
 		// render game objects
 		this.grid.render(this.layer);
@@ -236,6 +267,10 @@ var alchemy = {
 	/* keyboard events */
 	onkeydown : function(key) {
 		switch (key) {
+		// nab item in current player square
+		case 'comma':
+			this.player.nab(this.layer, this.grid, this.hud);
+			break;
 		// quoff current working potion!
 		case 'q':
 			this.player.color = this.player.potioncolor;
