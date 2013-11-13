@@ -15,7 +15,7 @@ game modes:
 TODO:
 
 * timer logic to drive animations and game mode
-* obstactle classes and generation
+* obstacle classes and generation
 * sprites for game objects
 * add other item classes (rings, etc)
 * hud slots for item inventory

@@ -7,6 +7,7 @@
  */
 function potion() {
 	this.name = 'potion';
+	this.type = 'item';
 	// random hex color
 	this.color = '#' + ('000000' + Math.floor(Math.random() * 16777215).toString(16)).slice(-6);
 	
@@ -21,12 +22,29 @@ function potion() {
 	}
 }
 
+
+function wall() {
+	this.name = 'wall';
+	this.type = 'fixture';
+	this.color = '#5C5C5C';
+	
+	this.render = function(layer, grid, x, y) {
+		layer.fillStyle(this.color).fillRect(
+				x * grid.xsize + grid.lineWidth,
+				y * grid.ysize + grid.lineWidth,
+				grid.xsize - grid.lineWidth * 2,
+				grid.ysize - grid.lineWidth * 2
+				);
+	}
+}
+
 function grid(xdim, ydim, bgcolor, fontsize) {
 	this.xdim = xdim;
 	this.ydim = ydim;
 	this.bgcolor = bgcolor;
 	this.gridcolor = '#D6D6D6';
 	this.fontsize = fontsize;
+	// todo: correct for sprite dimensions
 	this.xsize = (xdim / fontsize / 2);
 	this.ysize = (ydim / fontsize / 2);
 	this.squares = new Array();
@@ -47,7 +65,11 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 				// 10% chance of potion
 				if (r < .1) {
 					this.squares[x][y] = new potion();
-				} else {
+				} 
+				else if (r < .3) {
+					this.squares[x][y] = new wall();
+				}
+				else {
 					this.squares[x][y] = 0;
 				}
 			}
@@ -70,6 +92,19 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 		}
 	}
 
+	// check if coords are legal move
+	this.checkMove = function(x, y) {
+		// within game bounds
+		if (y < this.ydim && y >= 0 && x < this.xdim && x >= 0) {
+			// not a solid object
+			if (this.squares[x / this.xsize][y / this.ysize].type != 'fixture') {
+				return true;
+			}			
+		}
+		
+		
+	}
+	
 	this.render = function(layer) {
 		// draw objects on grid
 		for ( var x = 0; x < this.xsize - 1; x++) {
@@ -101,13 +136,13 @@ function player(x, y, color) {
 	// pick up the object under player and handle
 	this.nab = function(layer, grid, hud) {
 		var object = grid.squares[this.x / grid.xsize][this.y / grid.ysize];
-		// no object, return
-		if (object == 0) {return};
+		// no object or not an item, return
+		if (object == 0 || object.type != 'item') {return};
 		
 		switch(object.name) {
 		case 'potion':
 			this.potioncolor = mixColors(this.potioncolor, object.color);
-			break;
+			break;	
 		}
 		
 		grid.squares[this.x / grid.xsize][this.y / grid.ysize] = 0;
@@ -183,11 +218,15 @@ function hud(xdim, ydim) {
 }
 
 function mixColors(color1, color2) {
+	// if white (empty) return other color
+	if (color1 == '#FFFFFF') {
+		return color2;
+	}
 	var a1 = cq.color(color1).toArray();
 	var a2 = cq.color(color2).toArray();
 	var res = new Array();
 	for (var i = 0; i < a1.length; i++) {
-		res[i] = (a1[i] + a2[i]) / 2;
+		res[i] = (a1[i] + a2[i]) /2 ;
 	}
 	return cq.color(res).toHex();
 }
@@ -279,25 +318,25 @@ var alchemy = {
 			this.hud.updated = 1;
 			break;
 		case 'down':
-			if (this.player.y + this.grid.ysize < this.grid.ydim) {
+			if (this.grid.checkMove(this.player.x, this.player.y + this.grid.ysize)) {
 				this.player.down = 1;
 				this.player.updated = 1;
 			}
 			break;
 		case 'right':
-			if (this.player.x + this.grid.xsize < this.grid.xdim) {
+			if (this.grid.checkMove(this.player.x + this.grid.xsize, this.player.y)) {
 				this.player.right = 1;
 				this.player.updated = 2;
 			}
 			break;
 		case 'up':
-			if (this.player.y - this.grid.ysize >= 0) {
+			if (this.grid.checkMove(this.player.x, this.player.y - this.grid.ysize)) {
 				this.player.up = 1;
 				this.player.updated = 3;
 			}
 			break;
 		case 'left':
-			if (this.player.x - this.grid.xsize >= 0) {
+			if (this.grid.checkMove(this.player.x - this.grid.xsize, this.player.y)) {
 				this.player.left = 1;
 				this.player.updated = 4;
 			}
