@@ -5,36 +5,60 @@
  *	by Matt Shockley
  * 
  */
+
 function potion() {
 	this.name = 'potion';
 	this.type = 'item';
 	// random hex color
-	this.color = '#' + ('000000' + Math.floor(Math.random() * 16777215).toString(16)).slice(-6);
-	
+	this.color = '#'
+			+ ('000000' + Math.floor(Math.random() * 16777215).toString(16))
+					.slice(-6);
+
 	this.render = function(layer, grid, x, y) {
-//		 layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
-//		 y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
-//		 grid.ysize - grid.lineWidth * 2);
+		// layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
+		// y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
+		// grid.ysize - grid.lineWidth * 2);
 		layer.fillStyle(this.color).font(
 				"bold " + (grid.fontsize + 15) + "px sans-serif").fillText('!',
 				x * grid.xsize + 8, y * grid.ysize + 22);
-		
+
 	}
 }
 
+function ring() {
+	this.name = 'ring';
+	this.type = 'item';
+	this.color = '#'
+			+ ('000000' + Math.floor(Math.random() * 16777215).toString(16))
+					.slice(-6);
+
+	this.renderInv = function(layer, grid, x, y, width) {
+		layer.fillStyle(this.color).font(
+				"bold " + (grid.fontsize + 50) + "px sans-serif").fillText('=',
+						x + width * .20 , y + width * .85);
+	}
+	
+	this.render = function(layer, grid, x, y) {
+		// layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
+		// y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
+		// grid.ysize - grid.lineWidth * 2);
+		layer.fillStyle(this.color).font(
+				"bold " + (grid.fontsize + 15) + "px sans-serif").fillText('=',
+				x * grid.xsize + 5, y * grid.ysize + 22);
+
+	}
+}
 
 function wall() {
 	this.name = 'wall';
 	this.type = 'fixture';
-	this.color = '#5C5C5C';
-	
+	this.color = '#8F8F8F';
+
 	this.render = function(layer, grid, x, y) {
-		layer.fillStyle(this.color).fillRect(
-				x * grid.xsize + grid.lineWidth,
+		layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
 				y * grid.ysize + grid.lineWidth,
 				grid.xsize - grid.lineWidth * 2,
-				grid.ysize - grid.lineWidth * 2
-				);
+				grid.ysize - grid.lineWidth * 2);
 	}
 }
 
@@ -65,11 +89,11 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 				// 10% chance of potion
 				if (r < .1) {
 					this.squares[x][y] = new potion();
-				} 
-				else if (r < .3) {
+				} else if (r < .3) {
 					this.squares[x][y] = new wall();
-				}
-				else {
+				} else if (r < .4) {
+					this.squares[x][y] = new ring();
+				} else {
 					this.squares[x][y] = 0;
 				}
 			}
@@ -99,12 +123,11 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 			// not a solid object
 			if (this.squares[x / this.xsize][y / this.ysize].type != 'fixture') {
 				return true;
-			}			
+			}
 		}
-		
-		
+
 	}
-	
+
 	this.render = function(layer) {
 		// draw objects on grid
 		for ( var x = 0; x < this.xsize - 1; x++) {
@@ -130,6 +153,8 @@ function player(x, y, color) {
 	this.right = 0;
 	this.left = 0;
 
+	this.inventory = new Array(0, 0, 0, 0);
+
 	// current working potion color
 	this.potioncolor = '#FFFFFF';
 
@@ -137,21 +162,35 @@ function player(x, y, color) {
 	this.nab = function(layer, grid, hud) {
 		var object = grid.squares[this.x / grid.xsize][this.y / grid.ysize];
 		// no object or not an item, return
-		if (object == 0 || object.type != 'item') {return};
-		
-		switch(object.name) {
+		if (object == 0 || object.type != 'item') {
+			return
+
+			
+
+		}
+		;
+
+		switch (object.name) {
 		case 'potion':
 			this.potioncolor = mixColors(this.potioncolor, object.color);
-			break;	
+			break;
+		case 'ring':
+			for (var i = 0; i < this.inventory.length; i++) {
+				if (this.inventory[i] == 0) {
+					this.inventory[i] = object;
+					break;
+				}
+			};
+			break;
 		}
-		
+
 		grid.squares[this.x / grid.xsize][this.y / grid.ysize] = 0;
-		
+
 		grid.updated = 1;
 		hud.updated = 1;
 		this.updated = 1;
 	}
-	
+
 	this.step = function(grid) {
 		// update player position flags
 		if (this.updated) {
@@ -179,15 +218,15 @@ function player(x, y, color) {
 		layer.fillStyle(grid.bgcolor).fillRect(this.prevx + grid.lineWidth,
 				this.prevy + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
 				grid.ysize - grid.lineWidth * 2);
-		//console.log((this.prevx / grid.xsize) + ' ' + (this.prevy / grid.ysize));
-		
+		// console.log((this.prevx / grid.xsize) + ' ' + (this.prevy /
+		// grid.ysize));
+
 		// draw any object in previous square
 		if (grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize] != 0) {
 			grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize]
 					.render(layer, grid, this.prevx / grid.xsize, this.prevy
 							/ grid.ysize);
 		}
-		
 
 		// draw player
 		layer.fillStyle(this.color).font(
@@ -201,8 +240,23 @@ function player(x, y, color) {
 function hud(xdim, ydim) {
 	this.xdim = xdim;
 	this.ydim = ydim;
+	this.invslots = 4;
 	this.hudbgcolor = '#4F4F4F';
 	this.updated = 0;
+
+	// draw player inventory slots
+	this.drawInv = function(layer, grid, player) {
+		for ( var i = 0; i < this.invslots; i++) {
+			var xoffset = i * (this.xdim / 10 + this.xdim / 25);
+			layer.beginPath().beginPath().rect(this.xdim / 4 + xoffset,
+					grid.ydim + this.ydim / 5, this.xdim / 10, this.xdim / 10)
+					.lineWidth(2).strokeStyle('#DEDEDE').stroke();
+			if (player.inventory[i] != 0) {
+				player.inventory[i].renderInv(layer,grid,this.xdim / 4 + xoffset,
+						grid.ydim + this.ydim / 5, this.xdim / 10);
+			}
+		}
+	}
 
 	this.render = function(layer, grid, player) {
 		// draw hud background
@@ -214,7 +268,11 @@ function hud(xdim, ydim) {
 				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
+
+		this.drawInv(layer, grid, player);
+
 	}
+
 }
 
 function mixColors(color1, color2) {
@@ -225,8 +283,8 @@ function mixColors(color1, color2) {
 	var a1 = cq.color(color1).toArray();
 	var a2 = cq.color(color2).toArray();
 	var res = new Array();
-	for (var i = 0; i < a1.length; i++) {
-		res[i] = (a1[i] + a2[i]) /2 ;
+	for ( var i = 0; i < a1.length; i++) {
+		res[i] = (a1[i] + a2[i]) / 2;
 	}
 	return cq.color(res).toHex();
 }
@@ -318,25 +376,29 @@ var alchemy = {
 			this.hud.updated = 1;
 			break;
 		case 'down':
-			if (this.grid.checkMove(this.player.x, this.player.y + this.grid.ysize)) {
+			if (this.grid.checkMove(this.player.x, this.player.y
+					+ this.grid.ysize)) {
 				this.player.down = 1;
 				this.player.updated = 1;
 			}
 			break;
 		case 'right':
-			if (this.grid.checkMove(this.player.x + this.grid.xsize, this.player.y)) {
+			if (this.grid.checkMove(this.player.x + this.grid.xsize,
+					this.player.y)) {
 				this.player.right = 1;
 				this.player.updated = 2;
 			}
 			break;
 		case 'up':
-			if (this.grid.checkMove(this.player.x, this.player.y - this.grid.ysize)) {
+			if (this.grid.checkMove(this.player.x, this.player.y
+					- this.grid.ysize)) {
 				this.player.up = 1;
 				this.player.updated = 3;
 			}
 			break;
 		case 'left':
-			if (this.grid.checkMove(this.player.x - this.grid.xsize, this.player.y)) {
+			if (this.grid.checkMove(this.player.x - this.grid.xsize,
+					this.player.y)) {
 				this.player.left = 1;
 				this.player.updated = 4;
 			}
