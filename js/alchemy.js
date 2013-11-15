@@ -6,13 +6,12 @@
  * 
  */
 
-function potion() {
+function potion(style) {
 	this.name = 'potion';
 	this.type = 'item';
+	
 	// random hex color
-	this.color = '#'
-			+ ('000000' + Math.floor(Math.random() * 16777215).toString(16))
-					.slice(-6);
+	this.color = randColor();
 
 	this.renderInv = function(layer, grid, x, y, width) {
 		layer.fillStyle(this.color).font(
@@ -31,13 +30,13 @@ function potion() {
 	}
 }
 
-function ring() {
+function ring(style) {
 	this.name = 'ring';
 	this.type = 'item';
-	this.color = '#'
-			+ ('000000' + Math.floor(Math.random() * 16777215).toString(16))
-					.slice(-6);
+	this.color = randColor();
 
+
+	
 	this.renderInv = function(layer, grid, x, y, width) {
 		layer.fillStyle(this.color).font(
 				"bold " + (grid.fontsize + 50) + "px sans-serif").fillText('=',
@@ -52,6 +51,26 @@ function ring() {
 				"bold " + (grid.fontsize + 15) + "px sans-serif").fillText('=',
 				x * grid.xsize + 5, y * grid.ysize + 22);
 
+	}
+}
+
+function scroll(style) {
+	this.name = 'scroll';
+	this.type = 'item';
+	this.color = '#000000';
+	
+	
+	
+	this.renderInv = function(layer, grid, x, y, width) {
+		layer.fillStyle(this.color).font(
+				"bold " + (grid.fontsize + 50) + "px sans-serif").fillText('?',
+				x + width * .20, y + width * .85);
+	}
+	
+	this.render = function(layer, grid, x, y) {
+		layer.fillStyle(this.color).font(
+				 (grid.fontsize + 15) + "px sans-serif").fillText('?',
+				x * grid.xsize + 5, y * grid.ysize + 22);
 	}
 }
 
@@ -74,7 +93,6 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 	this.bgcolor = bgcolor;
 	this.gridcolor = '#D6D6D6';
 	this.fontsize = fontsize;
-	// todo: correct for sprite dimensions
 	this.xsize = 24;
 	this.ysize = 24;
 	this.squares = new Array();
@@ -92,14 +110,18 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 				}
 
 				var r = Math.random();
-				// 10% chance of potion
-				if (r < .1) {
+
+				if (r < .05) {
 					this.squares[x][y] = new potion();
-				} else if (r < .3) {
+				} else if (r < .2) {
 					this.squares[x][y] = new wall();
-				} else if (r < .4) {
+				} else if (r < .21) {
 					this.squares[x][y] = new ring();
-				} else {
+				} 
+				else if (r < .22) {
+					this.squares[x][y] = new scroll();
+				}					
+				else {
 					this.squares[x][y] = 0;
 				}
 			}
@@ -174,11 +196,14 @@ function player(x, y, color) {
 	this.down = 0;
 	this.right = 0;
 	this.left = 0;
+	this.parts = 1;
 
 	this.inventory = new Array(0, 0, 0, 0);
 
 	// current working potion color
 	this.potioncolor = '#FFFFFF';
+	// target color
+	this.targetcolor = randColor();
 
 	// pick up the object under player and handle
 	this.nab = function(layer, grid, hud) {
@@ -207,12 +232,22 @@ function player(x, y, color) {
 		var object = this.inventory[slot];
 		if (object != 0) {
 			switch (object.name) {
+			// mix potions
 			case 'potion':
-				this.potioncolor = mixColors(this.potioncolor, object.color);
+				//this.potioncolor = mixColors(this.potioncolor, object.color);
+				this.parts++;
+				this.potioncolor = mixColors(this.potioncolor, object.color, this.parts);
 				this.inventory[slot] = 0;
 				break;
+			// apply ring color
 			case 'ring':
-				console.log("ring used!");
+				this.potioncolor = object.color;
+				break;
+			// random color scrolls
+			case 'scroll':
+				this.potioncolor = randColor();
+				this.inventory[slot] = 0;
+				this.parts = 1;
 				break;
 			}
 
@@ -270,13 +305,13 @@ function hud(xdim, ydim) {
 		var hudxrange = this.xdim * grid.xsize;
 
 		for ( var i = 0; i < this.invslots; i++) {
-			var xoffset = i * (hudxrange / 10 + hudyrange / 25);
-			layer.beginPath().beginPath().rect(hudxrange / 4 + xoffset,
-					gridyrange + hudyrange / 5, hudxrange / 10, hudxrange / 10)
+			var xoffset = i * (hudxrange / 10 + hudyrange / 5);
+			layer.beginPath().beginPath().rect(hudxrange / 2.75 + xoffset,
+					gridyrange + hudyrange / 4, hudxrange / 10, hudxrange / 10)
 					.lineWidth(2).strokeStyle('#DEDEDE').stroke();
 			if (player.inventory[i] != 0) {
-				player.inventory[i].renderInv(layer, grid, hudxrange / 4
-						+ xoffset, gridyrange + hudyrange / 5, hudxrange / 10);
+				player.inventory[i].renderInv(layer, grid, hudxrange / 2.75
+						+ xoffset, gridyrange + hudyrange / 4, hudxrange / 10);
 			}
 		}
 	}
@@ -287,19 +322,38 @@ function hud(xdim, ydim) {
 		var hudxrange = this.xdim * grid.xsize;
 
 		// draw hud background
-		layer.fillStyle(this.hudbgcolor).fillRect(0, gridyrange, hudxrange,
+		layer.fillStyle(this.hudbgcolor).fillRect(0, gridyrange, hudxrange + grid.xsize,
 				hudyrange);
+		// draw target potion color indicator
+		layer.beginPath().arc(hudxrange / 10, gridyrange + hudyrange / 2,
+				hudyrange / 4, 0, 2 * Math.PI).fillStyle(player.targetcolor)
+				.fill().lineWidth(5).strokeStyle(
+						cq.color(player.targetcolor).shiftHsl(null, -.2, -.4)
+								.toHex()).stroke();
+		
 		// draw current potion color indicator
-		layer.beginPath().arc(hudxrange / 8, gridyrange + hudyrange / 2,
+		layer.beginPath().arc(hudxrange / 10 * 2.5, gridyrange + hudyrange / 2,
 				hudyrange / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
 				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
-
+		// number of parts to the current mixture
+		layer.fillStyle('#000000').font(
+				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(player.parts,
+						hudxrange / 10 * 2.4,  gridyrange + hudyrange / 1.1);
+		
 		this.drawInv(layer, grid, player);
 
 	}
 
+}
+
+function randColor(){
+	var r=
+	('#'
+	+ ('000000' + Math.floor(Math.random() * 16777215).toString(16))
+			.slice(-6));
+	return r;
 }
 
 function mixColors(color1, color2) {
@@ -316,6 +370,19 @@ function mixColors(color1, color2) {
 	return cq.color(res).toHex();
 }
 
+// mix weighted based on number of component colors
+function mixColors(color1, color2, parts) {
+	
+	var a1 = cq.color(color1).toArray();
+	var a2 = cq.color(color2).toArray();
+	var res = new Array();
+	for ( var i = 0; i < a1.length; i++) {
+		res[i] = ( (a1[i] * (parts - 1) / parts) + (a2[i] / parts)) / 2;
+	}
+	return cq.color(res).toHex();
+}
+
+
 function rnd_snd() {
 	return (Math.random() * 2 - 1) + (Math.random() * 2 - 1)
 			+ (Math.random() * 2 - 1);
@@ -329,14 +396,13 @@ var alchemy = {
 	setup : function() {
 		// intialize game objects
 		this.grid = new grid(25, 25, '#E3DEE0', 12);
-		this.hud = new hud(25, 5);
+		this.hud = new hud(this.grid.xsize, 5);
 		this.player = new player(0, 0, '#000000');
 
 		// create canvas
-		this.layer = cq(
-				this.grid.xdim * this.grid.xsize,
-				this.grid.ydim * this.grid.ysize + this.hud.ydim
-						* this.grid.ysize).framework(this, this);
+		this.layer = cq(this.grid.xdim * this.grid.xsize,
+				(this.grid.ydim + this.hud.ydim) * this.grid.ysize).framework(
+				this, this);
 
 		this.grid.initSquares(this.player);
 		this.grid.initGrid(this.layer);
