@@ -14,6 +14,12 @@ function potion() {
 			+ ('000000' + Math.floor(Math.random() * 16777215).toString(16))
 					.slice(-6);
 
+	this.renderInv = function(layer, grid, x, y, width) {
+		layer.fillStyle(this.color).font(
+				"bold " + (grid.fontsize + 50) + "px sans-serif").fillText('!',
+				x + width * .33, y + width * .85);
+	}
+
 	this.render = function(layer, grid, x, y) {
 		// layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
 		// y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
@@ -35,9 +41,9 @@ function ring() {
 	this.renderInv = function(layer, grid, x, y, width) {
 		layer.fillStyle(this.color).font(
 				"bold " + (grid.fontsize + 50) + "px sans-serif").fillText('=',
-						x + width * .20 , y + width * .85);
+				x + width * .20, y + width * .85);
 	}
-	
+
 	this.render = function(layer, grid, x, y) {
 		// layer.fillStyle(this.color).fillRect(x * grid.xsize + grid.lineWidth,
 		// y * grid.ysize + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
@@ -69,16 +75,16 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 	this.gridcolor = '#D6D6D6';
 	this.fontsize = fontsize;
 	// todo: correct for sprite dimensions
-	this.xsize = (xdim / fontsize / 2);
-	this.ysize = (ydim / fontsize / 2);
+	this.xsize = 24;
+	this.ysize = 24;
 	this.squares = new Array();
 	this.lineWidth = 1;
 
 	// initialize squares with objects on start
 	this.initSquares = function(player) {
-		for ( var x = 0; x < this.xsize - 1; x++) {
+		for ( var x = 0; x < this.xdim; x++) {
 			this.squares[x] = new Array();
-			for ( var y = 0; y < this.ysize - 1; y++) {
+			for ( var y = 0; y < this.ydim; y++) {
 				// no generation on player square
 				if (x == player.x && y == player.y) {
 					this.squares[x][y] = 0;
@@ -105,8 +111,8 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 		layer.clear(this.bgcolor);
 
 		// draw the game grid
-		for ( var x = 0; x < this.xsize - 1; x++) {
-			for ( var y = 0; y < this.ysize - 1; y++) {
+		for ( var x = 0; x < this.xdim; x++) {
+			for ( var y = 0; y < this.ydim; y++) {
 				layer.beginPath().moveTo(x * this.xsize, 0).lineTo(
 						x * this.xsize, 600).strokeStyle(this.gridcolor)
 						.lineWidth(this.lineWidth).stroke();
@@ -121,17 +127,33 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 		// within game bounds
 		if (y < this.ydim && y >= 0 && x < this.xdim && x >= 0) {
 			// not a solid object
-			if (this.squares[x / this.xsize][y / this.ysize].type != 'fixture') {
+			if (this.squares[x][y].type != 'fixture') {
 				return true;
 			}
 		}
 
 	}
 
+	this.clearSquare = function(layer, prevx, prevy) {
+		layer.fillStyle(this.bgcolor).fillRect(
+				prevx * this.xsize + this.lineWidth,
+				prevy * this.ysize + this.lineWidth,
+				this.xsize - this.lineWidth * 2,
+				this.ysize - this.lineWidth * 2);
+	}
+
+	this.drawSquare = function(layer, prevx, prevy) {
+		// draw any object in square
+		if (this.squares[prevx][prevy] != 0) {
+			this.squares[prevx][prevy].render(layer, this, prevx, prevy);
+		}
+
+	}
+
 	this.render = function(layer) {
 		// draw objects on grid
-		for ( var x = 0; x < this.xsize - 1; x++) {
-			for ( var y = 0; y < this.ysize - 1; y++) {
+		for ( var x = 0; x < this.xdim; x++) {
+			for ( var y = 0; y < this.ydim; y++) {
 				if (this.squares[x][y] != 0) {
 					this.squares[x][y].render(layer, this, x, y);
 				}
@@ -160,78 +182,75 @@ function player(x, y, color) {
 
 	// pick up the object under player and handle
 	this.nab = function(layer, grid, hud) {
-		var object = grid.squares[this.x / grid.xsize][this.y / grid.ysize];
+		var object = grid.squares[this.x][this.y];
 		// no object or not an item, return
 		if (object == 0 || object.type != 'item') {
-			return
-
-			
-
+			return;
 		}
 		;
 
-		switch (object.name) {
-		case 'potion':
-			this.potioncolor = mixColors(this.potioncolor, object.color);
-			break;
-		case 'ring':
-			for (var i = 0; i < this.inventory.length; i++) {
-				if (this.inventory[i] == 0) {
-					this.inventory[i] = object;
-					break;
-				}
-			};
-			break;
+		for ( var i = 0; i < this.inventory.length; i++) {
+			if (this.inventory[i] == 0) {
+				this.inventory[i] = object;
+				grid.squares[this.x][this.y] = 0;
+				grid.updated = 1;
+				hud.updated = 1;
+				this.updated = 1
+				break;
+			}
 		}
 
-		grid.squares[this.x / grid.xsize][this.y / grid.ysize] = 0;
+	}
 
-		grid.updated = 1;
-		hud.updated = 1;
-		this.updated = 1;
+	// use inventory slot
+	this.use = function(slot) {
+		var object = this.inventory[slot];
+		if (object != 0) {
+			switch (object.name) {
+			case 'potion':
+				this.potioncolor = mixColors(this.potioncolor, object.color);
+				this.inventory[slot] = 0;
+				break;
+			case 'ring':
+				console.log("ring used!");
+				break;
+			}
+
+		}
 	}
 
 	this.step = function(grid) {
 		// update player position flags
 		if (this.updated) {
 			if (this.right) {
-				this.x += grid.xsize;
+				this.x++;
 				this.right = 0;
 			}
 			if (this.left) {
-				this.x -= grid.xsize;
+				this.x--;
 				this.left = 0;
 			}
 			if (this.up) {
-				this.y -= grid.ysize;
+				this.y--;
 				this.up = 0;
 			}
 			if (this.down) {
-				this.y += grid.ysize;
+				this.y++;
 				this.down = 0;
 			}
 		}
 	}
 
 	this.render = function(layer, grid) {
-		// erase previous square if empty
-		layer.fillStyle(grid.bgcolor).fillRect(this.prevx + grid.lineWidth,
-				this.prevy + grid.lineWidth, grid.xsize - grid.lineWidth * 2,
-				grid.ysize - grid.lineWidth * 2);
-		// console.log((this.prevx / grid.xsize) + ' ' + (this.prevy /
-		// grid.ysize));
 
-		// draw any object in previous square
-		if (grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize] != 0) {
-			grid.squares[this.prevx / grid.xsize][this.prevy / grid.ysize]
-					.render(layer, grid, this.prevx / grid.xsize, this.prevy
-							/ grid.ysize);
-		}
+		// erase previous square if empty
+		grid.clearSquare(layer, this.prevx, this.prevy);
+		grid.drawSquare(layer, this.prevx, this.prevy);
 
 		// draw player
 		layer.fillStyle(this.color).font(
 				"bold " + grid.fontsize + "px sans-serif").fillText('@',
-				this.x + 6, this.y + 15);
+				this.x * grid.xsize + 6, this.y * grid.ysize + 15);
 		this.prevx = this.x;
 		this.prevy = this.y;
 	}
@@ -246,25 +265,33 @@ function hud(xdim, ydim) {
 
 	// draw player inventory slots
 	this.drawInv = function(layer, grid, player) {
+		var gridyrange = grid.ydim * grid.ysize;
+		var hudyrange = this.ydim * grid.ysize;
+		var hudxrange = this.xdim * grid.xsize;
+
 		for ( var i = 0; i < this.invslots; i++) {
-			var xoffset = i * (this.xdim / 10 + this.xdim / 25);
-			layer.beginPath().beginPath().rect(this.xdim / 4 + xoffset,
-					grid.ydim + this.ydim / 5, this.xdim / 10, this.xdim / 10)
+			var xoffset = i * (hudxrange / 10 + hudyrange / 25);
+			layer.beginPath().beginPath().rect(hudxrange / 4 + xoffset,
+					gridyrange + hudyrange / 5, hudxrange / 10, hudxrange / 10)
 					.lineWidth(2).strokeStyle('#DEDEDE').stroke();
 			if (player.inventory[i] != 0) {
-				player.inventory[i].renderInv(layer,grid,this.xdim / 4 + xoffset,
-						grid.ydim + this.ydim / 5, this.xdim / 10);
+				player.inventory[i].renderInv(layer, grid, hudxrange / 4
+						+ xoffset, gridyrange + hudyrange / 5, hudxrange / 10);
 			}
 		}
 	}
 
 	this.render = function(layer, grid, player) {
+		var gridyrange = grid.ydim * grid.ysize;
+		var hudyrange = this.ydim * grid.ysize;
+		var hudxrange = this.xdim * grid.xsize;
+
 		// draw hud background
-		layer.fillStyle(this.hudbgcolor).fillRect(0, grid.ydim, this.xdim,
-				this.ydim);
+		layer.fillStyle(this.hudbgcolor).fillRect(0, gridyrange, hudxrange,
+				hudyrange);
 		// draw current potion color indicator
-		layer.beginPath().arc(this.xdim / 8, grid.ydim + this.ydim / 2,
-				this.ydim / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
+		layer.beginPath().arc(hudxrange / 8, gridyrange + hudyrange / 2,
+				hudyrange / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
 				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
@@ -301,13 +328,15 @@ function rnd(mean, stdev) {
 var alchemy = {
 	setup : function() {
 		// intialize game objects
-		this.grid = new grid(600, 600, '#E3DEE0', 12);
-		this.hud = new hud(600, 96);
+		this.grid = new grid(25, 25, '#E3DEE0', 12);
+		this.hud = new hud(25, 5);
 		this.player = new player(0, 0, '#000000');
 
 		// create canvas
-		this.layer = cq(this.grid.xdim, this.grid.ydim + this.hud.ydim)
-				.framework(this, this);
+		this.layer = cq(
+				this.grid.xdim * this.grid.xsize,
+				this.grid.ydim * this.grid.ysize + this.hud.ydim
+						* this.grid.ysize).framework(this, this);
 
 		this.grid.initSquares(this.player);
 		this.grid.initGrid(this.layer);
@@ -375,30 +404,45 @@ var alchemy = {
 			this.player.updated = 1;
 			this.hud.updated = 1;
 			break;
+		// use inventory item
+		case '1':
+			this.player.use(0);
+			this.hud.updated = 1;
+			break;
+		case '2':
+			this.player.use(1);
+			this.hud.updated = 1;
+			break;
+		case '3':
+			this.player.use(2);
+			this.hud.updated = 1;
+			break;
+		case '4':
+			this.player.use(3);
+			this.hud.updated = 1;
+			break;
+
+		// directional controls
 		case 'down':
-			if (this.grid.checkMove(this.player.x, this.player.y
-					+ this.grid.ysize)) {
+			if (this.grid.checkMove(this.player.x, this.player.y + 1)) {
 				this.player.down = 1;
 				this.player.updated = 1;
 			}
 			break;
 		case 'right':
-			if (this.grid.checkMove(this.player.x + this.grid.xsize,
-					this.player.y)) {
+			if (this.grid.checkMove(this.player.x + 1, this.player.y)) {
 				this.player.right = 1;
 				this.player.updated = 2;
 			}
 			break;
 		case 'up':
-			if (this.grid.checkMove(this.player.x, this.player.y
-					- this.grid.ysize)) {
+			if (this.grid.checkMove(this.player.x, this.player.y - 1)) {
 				this.player.up = 1;
 				this.player.updated = 3;
 			}
 			break;
 		case 'left':
-			if (this.grid.checkMove(this.player.x - this.grid.xsize,
-					this.player.y)) {
+			if (this.grid.checkMove(this.player.x - 1, this.player.y)) {
 				this.player.left = 1;
 				this.player.updated = 4;
 			}
