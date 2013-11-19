@@ -83,7 +83,7 @@ function wall() {
 	}
 }
 
-function grid(xdim, ydim, bgcolor, fontsize) {
+function grid(xdim, ydim, bgcolor, fontsize, xsize, ysize) {
 	this.xdim = xdim;
 	this.ydim = ydim;
 	this.bgcolor = bgcolor;
@@ -91,6 +91,8 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 	this.fontsize = fontsize;
 	this.xsize = 24;
 	this.ysize = 24;
+	this.yrange = ysize * ydim;
+	this.xrange = xsize * xdim;
 	this.squares = new Array();
 	this.lineWidth = 1;
 
@@ -159,10 +161,10 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 				this.ysize - this.lineWidth * 2);
 	}
 
-	this.drawSquare = function(layer, prevx, prevy) {
+	this.drawSquare = function(layer, x, y) {
 		// draw any object in square
-		if (this.squares[prevx][prevy] != 0) {
-			this.squares[prevx][prevy].render(layer, this, prevx, prevy);
+		if (this.squares[x][y] != 0) {
+			this.squares[x][y].render(layer, this, x, y);
 		}
 
 	}
@@ -171,16 +173,14 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 		// draw objects on grid
 		for ( var x = 0; x < this.xdim; x++) {
 			for ( var y = 0; y < this.ydim; y++) {
-				if (this.squares[x][y] != 0) {
-					this.squares[x][y].render(layer, this, x, y);
-				}
+				this.drawSquare(layer, x, y);
 			}
 		}
 
 	}
 }
 
-function player(x, y, color) {
+function player(x, y, color, timer) {
 	this.x = x;
 	this.y = y;
 	this.prevx = x;
@@ -193,6 +193,7 @@ function player(x, y, color) {
 	this.left = 0;
 	this.parts = 1;
 	this.points = 0;
+	this.timer = timer;
 
 	this.inventory = new Array(0, 0, 0, 0);
 
@@ -245,7 +246,7 @@ function player(x, y, color) {
 				this.parts = 1;
 				break;
 			}
-			
+
 			if (this.checkMatch()) {
 				this.points++;
 				this.targetcolor = randColor();
@@ -255,7 +256,7 @@ function player(x, y, color) {
 
 		}
 	}
-	
+
 	this.checkMatch = function() {
 		if (cmpColors(this.targetcolor, this.potioncolor) < 100) {
 			return true;
@@ -282,11 +283,12 @@ function player(x, y, color) {
 				this.down = 0;
 			}
 		}
+		
 	}
 
 	this.render = function(layer, grid) {
 
-		// erase previous square if empty
+		// refresh previous square
 		grid.clearSquare(layer, this.prevx, this.prevy);
 		grid.drawSquare(layer, this.prevx, this.prevy);
 
@@ -299,67 +301,83 @@ function player(x, y, color) {
 	}
 }
 
-function hud(xdim, ydim) {
+function hud(xdim, ydim, xsize, ysize) {
 	this.xdim = xdim;
 	this.ydim = ydim;
+	this.xrange = xdim * xsize;
+	this.yrange = ydim * ysize;
 	this.invslots = 4;
 	this.hudbgcolor = '#4F4F4F';
 	this.updated = 0;
 
 	// draw player inventory slots
 	this.drawInv = function(layer, grid, player) {
-		var gridyrange = grid.ydim * grid.ysize;
-		var hudyrange = this.ydim * grid.ysize;
-		var hudxrange = this.xdim * grid.xsize;
-
 		for ( var i = 0; i < this.invslots; i++) {
-			var xoffset = i * (hudxrange / 10 + hudyrange / 5);
-			layer.beginPath().beginPath().rect(hudxrange / 2.75 + xoffset,
-					gridyrange + hudyrange / 4, hudxrange / 10, hudxrange / 10)
+			var xoffset = i * (this.xrange / 10 + this.yrange / 5);
+			layer.beginPath().beginPath().rect(this.xrange / 2.75 + xoffset,
+					grid.yrange + this.yrange / 4, this.xrange / 10, this.xrange / 10)
 					.lineWidth(2).strokeStyle('#DEDEDE').stroke();
 			if (player.inventory[i] != 0) {
-				player.inventory[i].renderInv(layer, grid, hudxrange / 2.75
-						+ xoffset, gridyrange + hudyrange / 4, hudxrange / 10);
+				player.inventory[i].renderInv(layer, grid, this.xrange / 2.75
+						+ xoffset, grid.yrange + this.yrange / 4, this.xrange / 10);
 			}
 		}
 	}
 
-	this.render = function(layer, grid, player) {
-		var gridyrange = grid.ydim * grid.ysize;
-		var hudyrange = this.ydim * grid.ysize;
-		var hudxrange = this.xdim * grid.xsize;
-
-		// draw hud background
-		layer.fillStyle(this.hudbgcolor).fillRect(0, gridyrange,
-				hudxrange + grid.xsize, hudyrange);
+	this.drawPotions = function(layer, grid, player) {
+		
 		// draw target potion color indicator
-		layer.beginPath().arc(hudxrange / 10, gridyrange + hudyrange / 2,
-				hudyrange / 4, 0, 2 * Math.PI).fillStyle(player.targetcolor)
+		layer.beginPath().arc(this.xrange / 10, grid.yrange + this.yrange / 2,
+				this.yrange / 4, 0, 2 * Math.PI).fillStyle(player.targetcolor)
 				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.targetcolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
-
 		// draw current potion color indicator
-		layer.beginPath().arc(hudxrange / 10 * 2.5, gridyrange + hudyrange / 2,
-				hudyrange / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
+		layer.beginPath().arc(this.xrange / 10 * 2.5, grid.yrange + this.yrange / 2,
+				this.yrange / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
 				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
-		
 		// color distance from target
 		layer.fillStyle('#000000').font(
 				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
-				Math.floor(cmpColors(player.targetcolor, player.potioncolor)), hudxrange / 10 * 2.25,
-				gridyrange + hudyrange / 1.75);
-		
+				Math.floor(cmpColors(player.targetcolor, player.potioncolor)),
+				this.xrange / 10 * 2.25, grid.yrange + this.yrange / 1.75);
 		// number of parts to the current mixture
 		layer.fillStyle('#000000').font(
 				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
-				player.parts, hudxrange / 10 * 1.6,
-				gridyrange + hudyrange / 1.1);
+				player.parts, this.xrange / 10 * 1.6,
+				grid.yrange + this.yrange / 1.1);
+	}
+	
+	this.drawScore = function(layer, grid, player) {
+		layer.fillStyle('#000000').font(
+				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
+				player.points, this.xrange / 10 * 1.6,
+				grid.yrange + this.yrange * .25);
+	}
+
+	this.drawTimer = function(layer, grid, player) {
+		layer.fillStyle('#000000').font(
+				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
+				Math.floor(player.timer), this.xrange * .95,
+				grid.yrange + this.yrange * .6);
+	}
+	
+	this.render = function(layer, grid, player) {
+		
+		// draw hud background
+		layer.fillStyle(this.hudbgcolor).fillRect(0, grid.yrange,
+				this.xrange + grid.xsize, this.yrange);
+
+		this.drawPotions(layer, grid, player);
 
 		this.drawInv(layer, grid, player);
 
+		this.drawScore(layer, grid, player);
+		
+		this.drawTimer(layer, grid, player);
+		
 	}
 
 }
@@ -419,7 +437,7 @@ function cmpColors(color1, color2) {
 	for ( var i = 0; i < a1.length; i++) {
 		dist += Math.pow((a1[i] - a2[i]), 2);
 	}
-	
+
 	return Math.sqrt(dist);
 }
 
@@ -434,10 +452,22 @@ function rnd(mean, stdev) {
 
 var alchemy = {
 	setup : function() {
+		this.gamemode = 1;
+		switch (this.gamemode) {
+		// adventure
+		case 0:
+			this.timer = 0;
+			break;
+		// timed
+		case 1:
+			this.timer = 60;
+			break;
+		}
+				
 		// intialize game objects
-		this.grid = new grid(25, 25, '#E3DEE0', 12);
-		this.hud = new hud(this.grid.xsize, 5);
-		this.player = new player(0, 0, '#000000');
+		this.grid = new grid(25, 25, '#E3DEE0', 12, 24, 24);
+		this.hud = new hud(this.grid.xsize, 5, this.grid.xsize, this.grid.ysize);
+		this.player = new player(0, 0, '#000000', this.timer);
 
 		// create canvas
 		this.layer = cq(this.grid.xdim * this.grid.xsize,
@@ -457,7 +487,28 @@ var alchemy = {
 	/* game logic loop */
 	onstep : function(delta, time) {
 		this.player.step(this.grid);
-
+		
+	
+		// manage timer clock
+		switch (this.gamemode) {
+		case 0:
+			this.timer += delta / 1000;
+			if (Math.floor(this.timer) > this.player.timer) {
+				this.player.timer = Math.floor(this.timer);
+				this.hud.updated = 1;
+			}
+			break;
+		case 1:
+			this.timer -= delta / 1000;
+			if (Math.floor( this.timer) < this.player.timer) {
+				this.player.timer = Math.floor(this.timer);
+				this.hud.updated = 1;
+			}
+			break;
+		
+		}
+		
+		
 	},
 
 	/* rendering loop */

@@ -14,7 +14,7 @@ game modes:
 
 TODO:
 
-* timer to drive animations and game mode
+* logic to ensure state is always initially solvable  
 * different obstacle classes - moving, doors, fountain/sink
 * sprites for game objects
 * divide ring and other inventory in hud
