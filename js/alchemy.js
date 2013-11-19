@@ -9,7 +9,7 @@
 function potion(style) {
 	this.name = 'potion';
 	this.type = 'item';
-	
+
 	// random hex color
 	this.color = randColor();
 
@@ -35,8 +35,6 @@ function ring(style) {
 	this.type = 'item';
 	this.color = randColor();
 
-
-	
 	this.renderInv = function(layer, grid, x, y, width) {
 		layer.fillStyle(this.color).font(
 				"bold " + (grid.fontsize + 50) + "px sans-serif").fillText('=',
@@ -58,19 +56,17 @@ function scroll(style) {
 	this.name = 'scroll';
 	this.type = 'item';
 	this.color = '#000000';
-	
-	
-	
+
 	this.renderInv = function(layer, grid, x, y, width) {
 		layer.fillStyle(this.color).font(
 				"bold " + (grid.fontsize + 50) + "px sans-serif").fillText('?',
 				x + width * .20, y + width * .85);
 	}
-	
+
 	this.render = function(layer, grid, x, y) {
-		layer.fillStyle(this.color).font(
-				 (grid.fontsize + 15) + "px sans-serif").fillText('?',
-				x * grid.xsize + 5, y * grid.ysize + 22);
+		layer.fillStyle(this.color)
+				.font((grid.fontsize + 15) + "px sans-serif").fillText('?',
+						x * grid.xsize + 5, y * grid.ysize + 22);
 	}
 }
 
@@ -117,11 +113,9 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 					this.squares[x][y] = new wall();
 				} else if (r < .21) {
 					this.squares[x][y] = new ring();
-				} 
-				else if (r < .22) {
+				} else if (r < .22) {
 					this.squares[x][y] = new scroll();
-				}					
-				else {
+				} else {
 					this.squares[x][y] = 0;
 				}
 			}
@@ -149,7 +143,8 @@ function grid(xdim, ydim, bgcolor, fontsize) {
 		// within game bounds
 		if (y < this.ydim && y >= 0 && x < this.xdim && x >= 0) {
 			// not a solid object
-			if (this.squares[x][y].type != 'fixture') {
+			if (this.squares[x][y].type == 0
+					|| this.squares[x][y].type != 'fixture') {
 				return true;
 			}
 		}
@@ -234,10 +229,13 @@ function player(x, y, color) {
 			switch (object.name) {
 			// mix potions
 			case 'potion':
-				//this.potioncolor = mixColors(this.potioncolor, object.color);
+				// this.potioncolor = mixColors(this.potioncolor, object.color);
 				this.parts++;
-				this.potioncolor = mixColors(this.potioncolor, object.color, this.parts);
+				this.potioncolor = mixColors(this.potioncolor, object.color);
 				this.inventory[slot] = 0;
+				if (cmpColors(this.targetcolor, this.potioncolor, 100)) {
+					console.log('win');
+				}
 				break;
 			// apply ring color
 			case 'ring':
@@ -322,15 +320,15 @@ function hud(xdim, ydim) {
 		var hudxrange = this.xdim * grid.xsize;
 
 		// draw hud background
-		layer.fillStyle(this.hudbgcolor).fillRect(0, gridyrange, hudxrange + grid.xsize,
-				hudyrange);
+		layer.fillStyle(this.hudbgcolor).fillRect(0, gridyrange,
+				hudxrange + grid.xsize, hudyrange);
 		// draw target potion color indicator
 		layer.beginPath().arc(hudxrange / 10, gridyrange + hudyrange / 2,
 				hudyrange / 4, 0, 2 * Math.PI).fillStyle(player.targetcolor)
 				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.targetcolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
-		
+
 		// draw current potion color indicator
 		layer.beginPath().arc(hudxrange / 10 * 2.5, gridyrange + hudyrange / 2,
 				hudyrange / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
@@ -339,20 +337,19 @@ function hud(xdim, ydim) {
 								.toHex()).stroke();
 		// number of parts to the current mixture
 		layer.fillStyle('#000000').font(
-				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(player.parts,
-						hudxrange / 10 * 2.4,  gridyrange + hudyrange / 1.1);
-		
+				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
+				player.parts, hudxrange / 10 * 2.4,
+				gridyrange + hudyrange / 1.1);
+
 		this.drawInv(layer, grid, player);
 
 	}
 
 }
 
-function randColor(){
-	var r=
-	('#'
-	+ ('000000' + Math.floor(Math.random() * 16777215).toString(16))
-			.slice(-6));
+function randColor() {
+	var r = ('#' + ('000000' + Math.floor(Math.random() * 16777215)
+			.toString(16)).slice(-6));
 	return r;
 }
 
@@ -371,17 +368,45 @@ function mixColors(color1, color2) {
 }
 
 // mix weighted based on number of component colors
-function mixColors(color1, color2, parts) {
-	
+// function mixColors(color1, color2, parts) {
+//	
+// var a1 = cq.color(color1).toArray();
+// var a2 = cq.color(color2).toArray();
+// var res = new Array();
+// for ( var i = 0; i < a1.length; i++) {
+// res[i] = ( (a1[i] * (parts - 1) / parts) + (a2[i] / parts)) / 2;
+// }
+// return cq.color(res).toHex();
+// }
+
+// function cmpColors(color1, color2, tolerance) {
+// var a1 = cq.color(color1).toHsl();
+// var a2 = cq.color(color2).toHsl();
+// var log = '';
+// var test = 1;
+// for ( var i = 0; i < a1.length; i++) {
+// if (a2[i] - tolerance < a1[i] || a2[i] + tolerance > a2[i]) {
+// test = 0;
+// }
+// log += Math.abs(a1[i] - a2[i]) + ' ';
+// }
+// console.log(log);
+// return test;
+// }
+
+function cmpColors(color1, color2, maxdist) {
 	var a1 = cq.color(color1).toArray();
 	var a2 = cq.color(color2).toArray();
-	var res = new Array();
-	for ( var i = 0; i < a1.length; i++) {
-		res[i] = ( (a1[i] * (parts - 1) / parts) + (a2[i] / parts)) / 2;
-	}
-	return cq.color(res).toHex();
-}
+	var dist = 0;
 
+	for ( var i = 0; i < a1.length; i++) {
+		dist += Math.pow((a1[i] - a2[i]), 2);
+	}
+
+	console.log(Math.sqrt(dist));
+	
+	return Math.sqrt(dist) < maxdist;
+}
 
 function rnd_snd() {
 	return (Math.random() * 2 - 1) + (Math.random() * 2 - 1)
