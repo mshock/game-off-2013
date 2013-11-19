@@ -192,6 +192,7 @@ function player(x, y, color) {
 	this.right = 0;
 	this.left = 0;
 	this.parts = 1;
+	this.points = 0;
 
 	this.inventory = new Array(0, 0, 0, 0);
 
@@ -229,13 +230,9 @@ function player(x, y, color) {
 			switch (object.name) {
 			// mix potions
 			case 'potion':
-				// this.potioncolor = mixColors(this.potioncolor, object.color);
 				this.parts++;
 				this.potioncolor = mixColors(this.potioncolor, object.color);
 				this.inventory[slot] = 0;
-				if (cmpColors(this.targetcolor, this.potioncolor, 100)) {
-					console.log('win');
-				}
 				break;
 			// apply ring color
 			case 'ring':
@@ -248,7 +245,20 @@ function player(x, y, color) {
 				this.parts = 1;
 				break;
 			}
+			
+			if (this.checkMatch()) {
+				this.points++;
+				this.targetcolor = randColor();
+				this.potioncolor = '#FFFFFF';
+				this.parts = 0;
+			}
 
+		}
+	}
+	
+	this.checkMatch = function() {
+		if (cmpColors(this.targetcolor, this.potioncolor) < 100) {
+			return true;
 		}
 	}
 
@@ -335,10 +345,17 @@ function hud(xdim, ydim) {
 				.fill().lineWidth(5).strokeStyle(
 						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
+		
+		// color distance from target
+		layer.fillStyle('#000000').font(
+				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
+				Math.floor(cmpColors(player.targetcolor, player.potioncolor)), hudxrange / 10 * 2.25,
+				gridyrange + hudyrange / 1.75);
+		
 		// number of parts to the current mixture
 		layer.fillStyle('#000000').font(
 				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
-				player.parts, hudxrange / 10 * 2.4,
+				player.parts, hudxrange / 10 * 1.6,
 				gridyrange + hudyrange / 1.1);
 
 		this.drawInv(layer, grid, player);
@@ -394,7 +411,7 @@ function mixColors(color1, color2) {
 // return test;
 // }
 
-function cmpColors(color1, color2, maxdist) {
+function cmpColors(color1, color2) {
 	var a1 = cq.color(color1).toArray();
 	var a2 = cq.color(color2).toArray();
 	var dist = 0;
@@ -402,10 +419,8 @@ function cmpColors(color1, color2, maxdist) {
 	for ( var i = 0; i < a1.length; i++) {
 		dist += Math.pow((a1[i] - a2[i]), 2);
 	}
-
-	console.log(Math.sqrt(dist));
 	
-	return Math.sqrt(dist) < maxdist;
+	return Math.sqrt(dist);
 }
 
 function rnd_snd() {

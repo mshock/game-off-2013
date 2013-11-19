@@ -14,10 +14,12 @@ game modes:
 
 TODO:
 
-* timer logic to drive animations and game mode
-* obstacle classes and generation
+* timer to drive animations and game mode
+* different obstacle classes - moving, doors, fountain/sink
 * sprites for game objects
-* add other item classes (rings, etc)
-* hud slots for item inventory
+* divide ring and other inventory in hud
+* add score to hud - completed colors
+* upcoming colors indicator dots
 * enemy classes and logic
-* improve mixing algorithm
+* wands
+* side effects - player character/color, various states for diff colorspace coords
