@@ -224,6 +224,20 @@ function player(x, y, color, timer) {
 
 	}
 
+	this.quoff = function() {
+		if (this.potioncolor = '#FFFFFF') {
+			return;
+		}
+		this.color = this.potioncolor;
+		this.potioncolor = '#FFFFFF';
+		
+		if (this.checkMatch()) {
+			this.points++;
+			this.targetcolor = randColor();
+			this.parts = 0;
+		}
+	}
+	
 	// use inventory slot
 	this.use = function(slot) {
 		var object = this.inventory[slot];
@@ -245,13 +259,6 @@ function player(x, y, color, timer) {
 				this.inventory[slot] = 0;
 				this.parts = 1;
 				break;
-			}
-
-			if (this.checkMatch()) {
-				this.points++;
-				this.targetcolor = randColor();
-				this.potioncolor = '#FFFFFF';
-				this.parts = 0;
 			}
 
 		}
@@ -283,7 +290,7 @@ function player(x, y, color, timer) {
 				this.down = 0;
 			}
 		}
-		
+
 	}
 
 	this.render = function(layer, grid) {
@@ -315,17 +322,19 @@ function hud(xdim, ydim, xsize, ysize) {
 		for ( var i = 0; i < this.invslots; i++) {
 			var xoffset = i * (this.xrange / 10 + this.yrange / 5);
 			layer.beginPath().beginPath().rect(this.xrange / 2.75 + xoffset,
-					grid.yrange + this.yrange / 4, this.xrange / 10, this.xrange / 10)
-					.lineWidth(2).strokeStyle('#DEDEDE').stroke();
+					grid.yrange + this.yrange / 4, this.xrange / 10,
+					this.xrange / 10).lineWidth(2).strokeStyle('#DEDEDE')
+					.stroke();
 			if (player.inventory[i] != 0) {
 				player.inventory[i].renderInv(layer, grid, this.xrange / 2.75
-						+ xoffset, grid.yrange + this.yrange / 4, this.xrange / 10);
+						+ xoffset, grid.yrange + this.yrange / 4,
+						this.xrange / 10);
 			}
 		}
 	}
 
 	this.drawPotions = function(layer, grid, player) {
-		
+
 		// draw target potion color indicator
 		layer.beginPath().arc(this.xrange / 10, grid.yrange + this.yrange / 2,
 				this.yrange / 4, 0, 2 * Math.PI).fillStyle(player.targetcolor)
@@ -333,9 +342,9 @@ function hud(xdim, ydim, xsize, ysize) {
 						cq.color(player.targetcolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
 		// draw current potion color indicator
-		layer.beginPath().arc(this.xrange / 10 * 2.5, grid.yrange + this.yrange / 2,
-				this.yrange / 4, 0, 2 * Math.PI).fillStyle(player.potioncolor)
-				.fill().lineWidth(5).strokeStyle(
+		layer.beginPath().arc(this.xrange / 10 * 2.5,
+				grid.yrange + this.yrange / 2, this.yrange / 4, 0, 2 * Math.PI)
+				.fillStyle(player.potioncolor).fill().lineWidth(5).strokeStyle(
 						cq.color(player.potioncolor).shiftHsl(null, -.2, -.4)
 								.toHex()).stroke();
 		// color distance from target
@@ -349,7 +358,7 @@ function hud(xdim, ydim, xsize, ysize) {
 				player.parts, this.xrange / 10 * 1.6,
 				grid.yrange + this.yrange / 1.1);
 	}
-	
+
 	this.drawScore = function(layer, grid, player) {
 		layer.fillStyle('#000000').font(
 				"bold " + (grid.fontsize + 7) + "px sans-serif").fillText(
@@ -363,9 +372,9 @@ function hud(xdim, ydim, xsize, ysize) {
 				Math.floor(player.timer), this.xrange * .95,
 				grid.yrange + this.yrange * .6);
 	}
-	
+
 	this.render = function(layer, grid, player) {
-		
+
 		// draw hud background
 		layer.fillStyle(this.hudbgcolor).fillRect(0, grid.yrange,
 				this.xrange + grid.xsize, this.yrange);
@@ -375,9 +384,9 @@ function hud(xdim, ydim, xsize, ysize) {
 		this.drawInv(layer, grid, player);
 
 		this.drawScore(layer, grid, player);
-		
+
 		this.drawTimer(layer, grid, player);
-		
+
 	}
 
 }
@@ -453,6 +462,7 @@ function rnd(mean, stdev) {
 var alchemy = {
 	setup : function() {
 		this.gamemode = 1;
+		this.gamestate = 1;
 		switch (this.gamemode) {
 		// adventure
 		case 0:
@@ -463,7 +473,7 @@ var alchemy = {
 			this.timer = 60;
 			break;
 		}
-				
+
 		// intialize game objects
 		this.grid = new grid(25, 25, '#E3DEE0', 12, 24, 24);
 		this.hud = new hud(this.grid.xsize, 5, this.grid.xsize, this.grid.ysize);
@@ -487,8 +497,7 @@ var alchemy = {
 	/* game logic loop */
 	onstep : function(delta, time) {
 		this.player.step(this.grid);
-		
-	
+
 		// manage timer clock
 		switch (this.gamemode) {
 		case 0:
@@ -500,27 +509,39 @@ var alchemy = {
 			break;
 		case 1:
 			this.timer -= delta / 1000;
-			if (Math.floor( this.timer) < this.player.timer) {
+			if (Math.floor(this.timer) < this.player.timer) {
 				this.player.timer = Math.floor(this.timer);
 				this.hud.updated = 1;
 			}
+			if (this.player.timer == -1) {
+				console.log('time up');
+				this.gamestate = 0;
+			}
 			break;
-		
+
 		}
-		
-		
+
 	},
 
 	/* rendering loop */
 	onrender : function(delta, time) {
-		// render updated objects
-		if (this.player.updated) {
-			this.player.render(this.layer, this.grid);
-			this.player.updated = 0;
-		}
-		if (this.hud.updated) {
-			this.hud.render(this.layer, this.grid, this.player);
-			this.hud.updated = 0;
+		switch (this.gamestate) {
+		// game menu
+		case 0:
+
+			break;
+		// game playing
+		case 1:
+			// render updated objects
+			if (this.player.updated) {
+				this.player.render(this.layer, this.grid);
+				this.player.updated = 0;
+			}
+			if (this.hud.updated) {
+				this.hud.render(this.layer, this.grid, this.player);
+				this.hud.updated = 0;
+			}
+			break;
 		}
 
 	},
@@ -549,62 +570,79 @@ var alchemy = {
 
 	/* keyboard events */
 	onkeydown : function(key) {
-		switch (key) {
-		// nab item in current player square
-		case 'comma':
-			this.player.nab(this.layer, this.grid, this.hud);
+		switch (this.gamestate) {
+		// start/pause/gameover menu
+		case 0:
+			switch(key) {
+			// unpause/(re)start
+			case 'space':
+				this.gamestate = 1;
+				break;
+			}
 			break;
-		// quoff current working potion!
-		case 'q':
-			this.player.color = this.player.potioncolor;
-			this.player.potioncolor = '#FFFFFF';
-			this.player.updated = 1;
-			this.hud.updated = 1;
-			break;
-		// use inventory item
-		case '1':
-			this.player.use(0);
-			this.hud.updated = 1;
-			break;
-		case '2':
-			this.player.use(1);
-			this.hud.updated = 1;
-			break;
-		case '3':
-			this.player.use(2);
-			this.hud.updated = 1;
-			break;
-		case '4':
-			this.player.use(3);
-			this.hud.updated = 1;
-			break;
-
-		// directional controls
-		case 'down':
-			if (this.grid.checkMove(this.player.x, this.player.y + 1)) {
-				this.player.down = 1;
+		// playing
+		case 1:
+			switch (key) {
+			// pause
+			case 'space':
+				this.gamestate = 0;
+				break;
+			// nab item in current player square
+			case 'comma':
+				this.player.nab(this.layer, this.grid, this.hud);
+				break;
+			// quoff current working potion!
+			case 'q':
+				this.player.quoff();
 				this.player.updated = 1;
+				this.hud.updated = 1;
+				break;
+			// use inventory item
+			case '1':
+				this.player.use(0);
+				this.hud.updated = 1;
+				break;
+			case '2':
+				this.player.use(1);
+				this.hud.updated = 1;
+				break;
+			case '3':
+				this.player.use(2);
+				this.hud.updated = 1;
+				break;
+			case '4':
+				this.player.use(3);
+				this.hud.updated = 1;
+				break;
+
+			// directional controls
+			case 'down':
+				if (this.grid.checkMove(this.player.x, this.player.y + 1)) {
+					this.player.down = 1;
+					this.player.updated = 1;
+				}
+				break;
+			case 'right':
+				if (this.grid.checkMove(this.player.x + 1, this.player.y)) {
+					this.player.right = 1;
+					this.player.updated = 2;
+				}
+				break;
+			case 'up':
+				if (this.grid.checkMove(this.player.x, this.player.y - 1)) {
+					this.player.up = 1;
+					this.player.updated = 3;
+				}
+				break;
+			case 'left':
+				if (this.grid.checkMove(this.player.x - 1, this.player.y)) {
+					this.player.left = 1;
+					this.player.updated = 4;
+				}
+				break;
 			}
-			break;
-		case 'right':
-			if (this.grid.checkMove(this.player.x + 1, this.player.y)) {
-				this.player.right = 1;
-				this.player.updated = 2;
-			}
-			break;
-		case 'up':
-			if (this.grid.checkMove(this.player.x, this.player.y - 1)) {
-				this.player.up = 1;
-				this.player.updated = 3;
-			}
-			break;
-		case 'left':
-			if (this.grid.checkMove(this.player.x - 1, this.player.y)) {
-				this.player.left = 1;
-				this.player.updated = 4;
-			}
-			break;
 		}
+
 	},
 	onkeyup : function(key) {
 

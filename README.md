@@ -14,7 +14,9 @@ game modes:
 
 TODO:
 
-* logic to ensure state is always initially solvable  
+* start/end menu
+* high scores
+* logic to ensure state is always initially solvable
 * different obstacle classes - moving, doors, fountain/sink
 * sprites for game objects
 * divide ring and other inventory in hud
