@@ -180,7 +180,7 @@ function grid(xdim, ydim, bgcolor, fontsize, xsize, ysize) {
 	}
 }
 
-function player(x, y, color, timer) {
+function player(x, y, color, gamemode) {
 	this.x = x;
 	this.y = y;
 	this.prevx = x;
@@ -193,7 +193,9 @@ function player(x, y, color, timer) {
 	this.left = 0;
 	this.parts = 1;
 	this.points = 0;
-	this.timer = timer;
+	this.timer = gamemode ? 60 : 0;
+	this.gamestate = 1;
+	this.gamemode = gamemode;
 
 	this.inventory = new Array(0, 0, 0, 0);
 
@@ -202,6 +204,68 @@ function player(x, y, color, timer) {
 	// target color
 	this.targetcolor = randColor();
 
+	this.keyhandler = function(key, grid, hud) {
+		switch (key) {
+		// pause
+		case 'space':
+			this.gamestate = 0;
+			break;
+		// nab item in current player square
+		case 'comma':
+			this.nab(this.layer, grid, hud);
+			break;
+		// quoff current working potion!
+		case 'q':
+			this.quoff();
+			this.updated = 1;
+			hud.updated = 1;
+			break;
+		// use inventory item
+		case '1':
+			this.use(0);
+			hud.updated = 1;
+			break;
+		case '2':
+			this.use(1);
+			hud.updated = 1;
+			break;
+		case '3':
+			this.use(2);
+			hud.updated = 1;
+			break;
+		case '4':
+			this.use(3);
+			hud.updated = 1;
+			break;
+
+		// directional controls
+		case 'down':
+			if (grid.checkMove(this.x, this.y + 1)) {
+				this.down = 1;
+				this.updated = 1;
+			}
+			break;
+		case 'right':
+			if (grid.checkMove(this.x + 1, this.y)) {
+				this.right = 1;
+				this.updated = 2;
+			}
+			break;
+		case 'up':
+			if (grid.checkMove(this.x, this.y - 1)) {
+				this.up = 1;
+				this.updated = 3;
+			}
+			break;
+		case 'left':
+			if (grid.checkMove(this.x - 1, this.y)) {
+				this.left = 1;
+				this.updated = 4;
+			}
+			break;
+		}
+	}
+
 	// pick up the object under player and handle
 	this.nab = function(layer, grid, hud) {
 		var object = grid.squares[this.x][this.y];
@@ -209,7 +273,6 @@ function player(x, y, color, timer) {
 		if (object == 0 || object.type != 'item') {
 			return;
 		}
-		;
 
 		for ( var i = 0; i < this.inventory.length; i++) {
 			if (this.inventory[i] == 0) {
@@ -225,19 +288,19 @@ function player(x, y, color, timer) {
 	}
 
 	this.quoff = function() {
-		if (this.potioncolor = '#FFFFFF') {
+		if (this.potioncolor == '#FFFFFF') {
 			return;
 		}
 		this.color = this.potioncolor;
 		this.potioncolor = '#FFFFFF';
-		
+
 		if (this.checkMatch()) {
 			this.points++;
 			this.targetcolor = randColor();
 			this.parts = 0;
 		}
 	}
-	
+
 	// use inventory slot
 	this.use = function(slot) {
 		var object = this.inventory[slot];
@@ -459,11 +522,53 @@ function rnd(mean, stdev) {
 	return Math.round(rnd_snd() * stdev + mean);
 }
 
+// game menu object
+function menu() {
+	var state = 0;
+	var selected = 0;
+
+	this.keyhandler = function(key, player) {
+		switch (key) {
+		// unpause/(re)start
+		case 'space':
+			player.gamestate = 1;
+			break;
+		}
+	}
+
+	this.navigate = function(direction) {
+		if ((this.selected == 0 && direction == -1)
+				|| (this.selected == 1 && direction == 1)) {
+			return;
+		}
+
+		this.selected += direction;
+	}
+
+	this.select = function() {
+		switch (this.selected) {
+		case 0:
+			break;
+		case 1:
+			break;
+		}
+	}
+
+	this.render = function() {
+
+	}
+}
+
 var alchemy = {
 	setup : function() {
-		this.gamemode = 1;
-		this.gamestate = 1;
-		switch (this.gamemode) {
+
+		// intialize game objects
+		this.menu = new menu();
+		this.grid = new grid(25, 25, '#E3DEE0', 12, 24, 24);
+		this.hud = new hud(this.grid.xsize, 5, this.grid.xsize, this.grid.ysize);
+		this.player = new player(0, 0, '#000000', 1);
+
+		switch (this.player.gamemode) {
 		// adventure
 		case 0:
 			this.timer = 0;
@@ -473,11 +578,6 @@ var alchemy = {
 			this.timer = 60;
 			break;
 		}
-
-		// intialize game objects
-		this.grid = new grid(25, 25, '#E3DEE0', 12, 24, 24);
-		this.hud = new hud(this.grid.xsize, 5, this.grid.xsize, this.grid.ysize);
-		this.player = new player(0, 0, '#000000', this.timer);
 
 		// create canvas
 		this.layer = cq(this.grid.xdim * this.grid.xsize,
@@ -496,10 +596,15 @@ var alchemy = {
 
 	/* game logic loop */
 	onstep : function(delta, time) {
+		// no stepping in menu
+		if (this.player.gamestate == 0) {
+			return;
+		}
+
 		this.player.step(this.grid);
 
 		// manage timer clock
-		switch (this.gamemode) {
+		switch (this.player.gamemode) {
 		case 0:
 			this.timer += delta / 1000;
 			if (Math.floor(this.timer) > this.player.timer) {
@@ -525,12 +630,14 @@ var alchemy = {
 
 	/* rendering loop */
 	onrender : function(delta, time) {
-		switch (this.gamestate) {
-		// game menu
+		switch (this.player.gamestate) {
+		// menu
 		case 0:
-
+			if (this.menu.updated) {
+				this.menu.render(this.layer);
+			}
 			break;
-		// game playing
+		// playing
 		case 1:
 			// render updated objects
 			if (this.player.updated) {
@@ -570,77 +677,15 @@ var alchemy = {
 
 	/* keyboard events */
 	onkeydown : function(key) {
-		switch (this.gamestate) {
-		// start/pause/gameover menu
+		switch (this.player.gamestate) {
+		// menu
 		case 0:
-			switch(key) {
-			// unpause/(re)start
-			case 'space':
-				this.gamestate = 1;
-				break;
-			}
+			this.menu.keyhandler(key, this.player);
 			break;
 		// playing
 		case 1:
-			switch (key) {
-			// pause
-			case 'space':
-				this.gamestate = 0;
-				break;
-			// nab item in current player square
-			case 'comma':
-				this.player.nab(this.layer, this.grid, this.hud);
-				break;
-			// quoff current working potion!
-			case 'q':
-				this.player.quoff();
-				this.player.updated = 1;
-				this.hud.updated = 1;
-				break;
-			// use inventory item
-			case '1':
-				this.player.use(0);
-				this.hud.updated = 1;
-				break;
-			case '2':
-				this.player.use(1);
-				this.hud.updated = 1;
-				break;
-			case '3':
-				this.player.use(2);
-				this.hud.updated = 1;
-				break;
-			case '4':
-				this.player.use(3);
-				this.hud.updated = 1;
-				break;
-
-			// directional controls
-			case 'down':
-				if (this.grid.checkMove(this.player.x, this.player.y + 1)) {
-					this.player.down = 1;
-					this.player.updated = 1;
-				}
-				break;
-			case 'right':
-				if (this.grid.checkMove(this.player.x + 1, this.player.y)) {
-					this.player.right = 1;
-					this.player.updated = 2;
-				}
-				break;
-			case 'up':
-				if (this.grid.checkMove(this.player.x, this.player.y - 1)) {
-					this.player.up = 1;
-					this.player.updated = 3;
-				}
-				break;
-			case 'left':
-				if (this.grid.checkMove(this.player.x - 1, this.player.y)) {
-					this.player.left = 1;
-					this.player.updated = 4;
-				}
-				break;
-			}
+			this.player.keyhandler(key, this.grid, this.hud);
+			break;
 		}
 
 	},
