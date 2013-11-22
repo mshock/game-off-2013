@@ -14,7 +14,6 @@ game modes:
 
 TODO:
 
-* start/end menu
 * high scores
 * logic to ensure state is always initially solvable
 * different obstacle classes - moving, doors, fountain/sink

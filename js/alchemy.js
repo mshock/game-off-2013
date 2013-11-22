@@ -95,6 +95,7 @@ function grid(xdim, ydim, bgcolor, fontsize, xsize, ysize) {
 	this.xrange = xsize * xdim;
 	this.squares = new Array();
 	this.lineWidth = 1;
+	this.updated = 0;
 
 	// initialize squares with objects on start
 	this.initSquares = function(player) {
@@ -170,6 +171,7 @@ function grid(xdim, ydim, bgcolor, fontsize, xsize, ysize) {
 	}
 
 	this.render = function(layer) {
+		this.initGrid(layer);
 		// draw objects on grid
 		for ( var x = 0; x < this.xdim; x++) {
 			for ( var y = 0; y < this.ydim; y++) {
@@ -524,21 +526,46 @@ function rnd(mean, stdev) {
 
 // game menu object
 function menu() {
-	var state = 0;
-	var selected = 0;
+	this.title = 'Alchemy: Science of Change';
+	this.titlecolor = '#FFFFFF';
+	this.headercolor = '#FFFFFF';
+	this.itemcolor = '#000000';
+	this.selectcolor = '#FF0000';
+	this.state = 0;
+	this.selected = 1;
+	this.updated = 1;
+	this.items = new Array();
+	this.startitems = new Array('New Game', 'Start', 'High Scores', 'Controls',
+			'About');
+	this.pauseitems = new Array('Paused', 'Resume', 'High Scores', 'Controls',
+			'About');
+	this.enditems = new Array('Game Over', 'Again', 'High Scores', 'Controls',
+			'About');
 
-	this.keyhandler = function(key, player) {
+	this.keyhandler = function(key, player, grid, hud) {
 		switch (key) {
 		// unpause/(re)start
 		case 'space':
 			player.gamestate = 1;
+			player.updated = 1;
+			grid.updated = 1;
+			hud.updated = 1;
+			break;
+		case 'enter':
+			this.select();
+			break;
+		case 'up':
+			this.navigate(-1);
+			break;
+		case 'down':
+			this.navigate(1);
 			break;
 		}
 	}
 
 	this.navigate = function(direction) {
-		if ((this.selected == 0 && direction == -1)
-				|| (this.selected == 1 && direction == 1)) {
+		if ((this.selected == 1 && direction == -1)
+				|| (this.selected == 4 && direction == 1)) {
 			return;
 		}
 
@@ -546,15 +573,72 @@ function menu() {
 	}
 
 	this.select = function() {
-		switch (this.selected) {
-		case 0:
+		switch (this.items[this.selected]) {
+		case 'Start':
+		case 'Again':
 			break;
-		case 1:
+		case 'High Scores':
+			break;
+		case 'Controls':
+			break;
+		case 'About':
+			break;
+		case 'Resume':
 			break;
 		}
 	}
 
-	this.render = function() {
+	this.drawItem = function(layer, grid, name, pos) {
+
+		// header
+		if (pos == 0) {
+			layer.fillStyle(this.headercolor).font(
+					"bold " + (grid.fontsize + 20) + "px sans-serif");
+		}
+		// selected
+		else if (pos == this.selected) {
+			layer.fillStyle(this.selectcolor).font(
+					"bold " + (grid.fontsize + 20) + "px sans-serif");
+		}
+		// title
+		else if (pos < 0) {
+			layer.fillStyle(this.titlecolor).font(
+					"bold " + (grid.fontsize + 20) + "px sans-serif");
+		}
+		// item
+		else {
+			layer.fillStyle(this.itemcolor).font(
+					"bold " + (grid.fontsize + 15) + "px sans-serif");
+		}
+
+		layer.fillText(name, grid.xrange / 10, grid.ysize * 5 + grid.ysize * 2
+				* pos);
+	}
+
+	this.render = function(layer, grid) {
+
+		layer.fillStyle(grid.bgcolor).fillRect(0, 0, grid.xrange, grid.yrange);
+
+		this.drawItem(layer, grid, this.title, -1);
+
+		switch (this.state) {
+		// start
+		case 0:
+			this.items = this.startitems;
+			break;
+		// pause
+		case 1:
+			this.items = this.pauseitems;
+			break;
+		// end
+		case 2:
+			this.items = this.enditems;
+			break;
+		}
+
+		for ( var i = 0; i < this.items.length; i++) {
+			this.drawItem(layer, grid, this.items[i], i);
+		}
 
 	}
 }
@@ -634,12 +718,16 @@ var alchemy = {
 		// menu
 		case 0:
 			if (this.menu.updated) {
-				this.menu.render(this.layer);
+				this.menu.render(this.layer, this.grid);
 			}
 			break;
 		// playing
 		case 1:
 			// render updated objects
+			if (this.grid.updated) {
+				this.grid.render(this.layer);
+				this.grid.updated = 0;
+			}
 			if (this.player.updated) {
 				this.player.render(this.layer, this.grid);
 				this.player.updated = 0;
@@ -648,6 +736,7 @@ var alchemy = {
 				this.hud.render(this.layer, this.grid, this.player);
 				this.hud.updated = 0;
 			}
+
 			break;
 		}
 
@@ -680,7 +769,7 @@ var alchemy = {
 		switch (this.player.gamestate) {
 		// menu
 		case 0:
-			this.menu.keyhandler(key, this.player);
+			this.menu.keyhandler(key, this.player, this.grid, this.hud);
 			break;
 		// playing
 		case 1:
